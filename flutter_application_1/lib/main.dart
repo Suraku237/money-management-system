@@ -18,10 +18,29 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
-  final double balance = 0; // Your initial balance
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  double balance = 50000; // INITIAL BALANCE
+
+  // Call this when deposit page returns a value
+  void addToBalance(double amount) {
+    setState(() {
+      balance += amount;
+    });
+  }
+
+  // Call this when withdraw page returns a value
+  void subtractFromBalance(double amount) {
+    setState(() {
+      balance -= amount;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +58,7 @@ class HomePage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
 
-            // BALANCE DISPLAY
+            // SHOW DYNAMIC BALANCE
             Text(
               "Balance: ${balance.toStringAsFixed(0)} FCFA",
               style: const TextStyle(
@@ -51,44 +70,48 @@ class HomePage extends StatelessWidget {
 
             const SizedBox(height: 40),
 
-            // DEPOSIT BUTTON
+            // GO TO DEPOSIT PAGE
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
                 minimumSize: const Size(200, 50),
               ),
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => DepositPage(
-                      currentBalance: balance,
-                    ),
+                    builder: (context) => DepositPage(currentBalance: balance),
                   ),
                 );
+
+                if (result != null && result is double) {
+                  addToBalance(result);
+                }
               },
               child: const Text("Deposit"),
             ),
 
             const SizedBox(height: 20),
 
-            // WITHDRAW BUTTON
+            // GO TO WITHDRAW PAGE
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
                 minimumSize: const Size(200, 50),
               ),
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => WithdrawPage(
-                      currentBalance: balance,
-                    ),
+                    builder: (context) => WithdrawPage(currentBalance: balance),
                   ),
                 );
+
+                if (result != null && result is double) {
+                  subtractFromBalance(result);
+                }
               },
               child: const Text("Withdraw"),
             ),
