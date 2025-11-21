@@ -10,52 +10,87 @@ class DepositPage extends StatefulWidget {
 }
 
 class _DepositPageState extends State<DepositPage> {
-  final TextEditingController _amountController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
   final TextEditingController _pinController = TextEditingController();
 
-  String? errorMessage;
-  String selectedCountry = "Cameroon (+237)";
+  String selectedCountry = "Cameroon";
+  String countryCode = "+237";
 
-  // Country phone patterns
+  String? errorMessage;
+
+  // Phone validation rules
   final Map<String, Map<String, dynamic>> phoneRules = {
-    "Cameroon (+237)": {
-      "length": 9,
-      "startsWith": ["6"],
-    },
-    "Nigeria (+234)": {
-      "length": 10,
-      "startsWith": ["7", "8", "9"],
-    },
-    "Ghana (+233)": {
-      "length": 9,
-      "startsWith": ["2", "5"],
-    },
+    "Cameroon": {"code": "+237", "length": 9, "starts": ["6", "2"]},
+    "Nigeria": {"code": "+234", "length": 10, "starts": ["7", "8", "9"]},
+    "Ghana": {"code": "+233", "length": 9, "starts": ["2", "5"]},
+    "Kenya": {"code": "+254", "length": 9, "starts": ["7"]},
+    "South Africa": {"code": "+27", "length": 9, "starts": ["6", "7"]},
+    "India": {"code": "+91", "length": 10, "starts": ["6", "7", "8", "9"]},
   };
 
+  bool validatePhoneNumber() {
+    String number = _phoneController.text.trim();
+
+    var rules = phoneRules[selectedCountry]!;
+    int requiredLength = rules["length"];
+    List<dynamic> startsWith = rules["starts"];
+
+    if (number.length != requiredLength) {
+      setState(() {
+        errorMessage =
+            "Phone number must be $requiredLength digits for $selectedCountry.";
+      });
+      return false;
+    }
+
+    bool prefixValid = startsWith.any((prefix) => number.startsWith(prefix));
+
+    if (!prefixValid) {
+      setState(() {
+        errorMessage =
+            "Phone number must start with ${startsWith.join(" or ")} for $selectedCountry.";
+      });
+      return false;
+    }
+
+    return true;
+  }
+
   void _handleDeposit() {
+    if (!validatePhoneNumber()) return;
+
+    if (_amountController.text.trim().isEmpty) {
+      setState(() => errorMessage = "Please enter an amount.");
+      return;
+    }
+
     final amount = double.tryParse(_amountController.text.trim());
-    final phone = _phoneController.text.trim();
-    final pin = _pinController.text.trim();
 
     if (amount == null || amount <= 0) {
       setState(() => errorMessage = "Enter a valid amount.");
       return;
     }
 
-    final rules = phoneRules[selectedCountry]!;
-    if (phone.length != rules["length"] ||
-        !rules["startsWith"].contains(phone[0])) {
-      setState(() => errorMessage = "Invalid phone number for $selectedCountry.");
-      return;
-    }
+    setState(() => errorMessage = null);
 
-    if (pin.length != 4) {
-      setState(() => errorMessage = "PIN must be 4 digits.");
-      return;
-    }
+    String fullNumber =
+        "${phoneRules[selectedCountry]!["code"]} ${_phoneController.text.trim()}";
 
-    Navigator.pop(context, amount); // RETURN TO MAIN WITH AMOUNT
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Deposit Successful"),
+        content: Text(
+            "You deposited ${amount.toStringAsFixed(0)} FCFA\nPhone: $fullNumber"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          )
+        ],
+      ),
+    );
   }
 
   @override
@@ -64,9 +99,13 @@ class _DepositPageState extends State<DepositPage> {
       backgroundColor: const Color(0xFF39A9A9),
 
       appBar: AppBar(
-        title: const Text("Deposit"),
         backgroundColor: const Color(0xFF39A9A9),
         elevation: 0,
+        title: const Text("Deposit"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context), //  BACK TO HOME
+        ),
       ),
 
       body: Padding(
@@ -74,77 +113,93 @@ class _DepositPageState extends State<DepositPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
             const Text(
               "Deposit",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
+
             const SizedBox(height: 20),
 
-            DropdownButtonFormField(
-              value: selectedCountry,
-              dropdownColor: Colors.white,
-              items: phoneRules.keys.map((e) {
-                return DropdownMenuItem(
-                  value: e,
-                  child: Text(e),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() => selectedCountry = value!);
-              },
-              decoration: const InputDecoration(
-                labelText: "Select Country",
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(),
+            // Country selector
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(),
+              ),
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: selectedCountry,
+                underline: const SizedBox(),
+                items: phoneRules.keys.map((country) {
+                  return DropdownMenuItem(
+                    value: country,
+                    child: Text(country),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedCountry = value!;
+                    countryCode = phoneRules[value]!["code"];
+                  });
+                },
               ),
             ),
 
             const SizedBox(height: 15),
 
+            // Phone input
             TextField(
               controller: _phoneController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Enter your number",
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(),
+                labelText:
+                    "Phone Number (${phoneRules[selectedCountry]!["code"]})",
+                border: const OutlineInputBorder(),
               ),
             ),
 
             const SizedBox(height: 15),
 
+            // Amount
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: "Deposit Amount",
                 filled: true,
                 fillColor: Colors.white,
+                labelText: "Deposit Amount (FCFA)",
                 border: OutlineInputBorder(),
               ),
             ),
 
             const SizedBox(height: 15),
 
+            // PIN
             TextField(
               controller: _pinController,
               obscureText: true,
-              keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: "PIN Code",
                 filled: true,
                 fillColor: Colors.white,
+                labelText: "PIN Code",
                 border: OutlineInputBorder(),
               ),
             ),
 
+            const SizedBox(height: 15),
+
             if (errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Text(errorMessage!, style: const TextStyle(color: Colors.red)),
-              ),
+              Text(errorMessage!,
+                  style: const TextStyle(color: Colors.red, fontSize: 14)),
 
             const Spacer(),
 
@@ -152,9 +207,13 @@ class _DepositPageState extends State<DepositPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _handleDeposit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                ),
                 child: const Text("Deposit"),
               ),
-            )
+            ),
           ],
         ),
       ),
