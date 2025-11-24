@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'home_page.dart'; // Make sure HomePage is imported
 
 void main() {
   runApp(const MyApp());
@@ -44,10 +45,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Login Successful! Welcome $email"),
-        backgroundColor: Colors.blueAccent,
+    double initialBalance = 1000.0;
+
+    // Navigate to HomePage after login
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HomePage(currentBalance: initialBalance),
       ),
     );
   }
@@ -124,7 +128,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         shadowColor: Colors.transparent,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Login', style: TextStyle(fontSize: 18)),
+                      child:
+                          const Text('Login', style: TextStyle(fontSize: 18)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -174,15 +179,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Sign Up Successful! Welcome ${_nameController.text}'),
-          backgroundColor: Colors.blueAccent,
+      double initialBalance = 1000.0;
+
+      // Navigate directly to HomePage after sign-up
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(currentBalance: initialBalance),
         ),
       );
-
-      Navigator.pop(context); // Back to login
     }
   }
 
