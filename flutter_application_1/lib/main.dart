@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import 'pages/login_signup.dart';
 
- // Import your HomePage file
-import 'pages/login.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -12,13 +11,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Login & SignUp App',
       debugShowCheckedModeBanner: false,
-      title: "Wallet App",
       theme: ThemeData(
-        primaryColor: const Color(0xFF39A9A9),
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
       ),
-
-      // Provide an initial balance to HomePage
+      home: const LoginScreen(), // Start with login screen
     );
   }
 }
