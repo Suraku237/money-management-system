@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'pages/home_page.dart'; // Import your HomePage file
 
+ // Import your HomePage file
+import 'pages/login.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -18,9 +19,6 @@ class MyApp extends StatelessWidget {
       ),
 
       // Provide an initial balance to HomePage
-      home: const HomePage(
-        currentBalance: 50000,   // Set any starting balance you want
-      ),
     );
   }
 }

@@ -131,12 +131,12 @@ class HomePage extends StatelessWidget {
                     );
                   },
                   child: _homeButton(
-                    icon: Icons.settings,
+                    icon: Icons.account_balance,
                     label: "Manage",
                     color: Colors.white,
                     textColor: Colors.black,
                   ),
-                ),
+                )
               ],
             ),
 

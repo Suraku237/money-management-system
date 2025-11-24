@@ -37,12 +37,24 @@ class _ManagePageState extends State<ManagePage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF39A9A9),
         elevation: 0,
-        title: const Text(
-          "Manage Money",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Column(
+          children: [
+            const Text(
+              "Manage Money",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (result != null)
+              Text(
+                "Current balance per day: ${result!.toStringAsFixed(2)}",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+          ],
         ),
         centerTitle: true,
       ),
@@ -50,7 +62,20 @@ class _ManagePageState extends State<ManagePage> {
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
+            // MANAGEMENT TITLE
+            const Text(
+              "Management",
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+
+            const SizedBox(height: 20),
 
             // INPUT: Money amount
             TextField(
