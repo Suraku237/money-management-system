@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart'; // Make sure HomePage is imported
+import 'home_page.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +21,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ---------------- LOGIN SCREEN ----------------
+// -------------------- LOGIN SCREEN --------------------
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -30,28 +33,63 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
 
-  void _login() {
-    String name = _nameController.text.trim();
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<bool> loginUser(String username, String password) async {
+    try {
+      final url = Uri.parse("http://127.0.0.1:5000/login");
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"username": username, "password": password}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data["success"] == true;
+      } else {
+        _showMessage("Server error: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      _showMessage("Network error");
+      return false;
+    }
+  }
+
+  Future<void> _login() async {
+    String username = _nameController.text.trim();
     String password = _passwordController.text.trim();
 
-    if (name.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enter name and password"),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+    if (username.isEmpty || password.isEmpty) {
+      _showMessage("Please fill all fields");
       return;
     }
 
-    double initialBalance = 1000.0;
+    setState(() => _isLoading = true);
+    bool success = await loginUser(username, password);
+    setState(() => _isLoading = false);
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => HomePage(currentBalance: initialBalance),
-      ),
+    if (success) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage(currentBalance: 1000)),
+      );
+    } else {
+      _showMessage("Incorrect username or password");
+    }
+  }
+
+  void _showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
     );
   }
 
@@ -74,30 +112,21 @@ class _LoginScreenState extends State<LoginScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(
-                      color: Colors.black12, blurRadius: 15, spreadRadius: 5)
-                ],
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, spreadRadius: 5)],
               ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Welcome ',
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueAccent),
+                    'Welcome',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blueAccent),
                   ),
                   const SizedBox(height: 24),
                   TextField(
                     controller: _nameController,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.person),
-                      hintText: 'name',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      hintText: 'Username',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -107,45 +136,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.lock),
                       hintText: 'Password',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Container(
+                  SizedBox(
                     width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [Colors.blueAccent, Colors.lightBlue]),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                     child: ElevatedButton(
-                      onPressed: _login,
+                      onPressed: _isLoading ? null : _login,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Colors.blueAccent,
                       ),
-                      child:
-                          const Text('Login', style: TextStyle(fontSize: 18)),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Login', style: TextStyle(fontSize: 18)),
                     ),
                   ),
                   const SizedBox(height: 16),
                   GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const SignUpScreen()),
-                      );
-                    },
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpScreen())),
                     child: const Text(
                       "Don't have an account? Sign Up",
-                      style: TextStyle(
-                          color: Colors.blueAccent,
-                          decoration: TextDecoration.underline,
-                          fontSize: 16),
+                      style: TextStyle(color: Colors.blueAccent, decoration: TextDecoration.underline, fontSize: 16),
                     ),
                   ),
                 ],
@@ -158,7 +171,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ---------------- SIGNUP SCREEN ----------------
+// -------------------- SIGNUP SCREEN --------------------
+
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -168,37 +182,78 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      // Return to LoginScreen after successful signup
-      Navigator.pop(context);
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _ageController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Account created! Please log in."),
-          backgroundColor: Colors.green,
-        ),
+  Future<bool> registerUser(String username, String password, String confirmPassword, String age, String email) async {
+    try {
+      final url = Uri.parse("http://127.0.0.1:5000/register");
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "username": username,
+          "password": password,
+          "confirm_password": confirmPassword,
+          "age": age,
+          "email": email,
+        }),
       );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data["success"] == true;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Server error: ${response.statusCode}")));
+        return false;
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Network error")));
+      return false;
     }
   }
-  
+
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    bool success = await registerUser(
+      _nameController.text.trim(),
+      _passwordController.text.trim(),
+      _confirmPasswordController.text.trim(),
+      _ageController.text.trim(),
+      _emailController.text.trim(),
+    );
+    setState(() => _isLoading = false);
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Account Created!")));
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Registration failed!")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.lightBlue, Colors.blueAccent],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+          gradient: LinearGradient(colors: [Colors.lightBlue, Colors.blueAccent], begin: Alignment.topCenter, end: Alignment.bottomCenter),
         ),
         child: Center(
           child: SingleChildScrollView(
@@ -206,149 +261,62 @@ class _SignUpScreenState extends State<SignUpScreen> {
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                        color: Colors.black12, blurRadius: 15, spreadRadius: 5)
-                  ]),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, spreadRadius: 5)],
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
                   children: [
-                    const Text(
-                      "Create Your Account",
-                      style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blueAccent),
-                    ),
+                    const Text("Create Your Account", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
                     const SizedBox(height: 24),
-
                     TextFormField(
                       controller: _nameController,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.person),
-                        hintText: 'Name',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      validator: (value) =>
-                          value!.isEmpty ? 'Please enter your name' : null,
+                      decoration: InputDecoration(prefixIcon: const Icon(Icons.person), hintText: 'Username', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                      validator: (value) => value!.isEmpty ? 'Please enter your name' : null,
                     ),
                     const SizedBox(height: 16),
-
                     TextFormField(
                       controller: _ageController,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.cake),
-                        hintText: 'Age',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                       keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your age';
-                        }
-                        final age = int.tryParse(value);
-                        if (age == null || age <= 0) return 'Enter a valid age';
-                        return null;
-                      },
+                      decoration: InputDecoration(prefixIcon: const Icon(Icons.cake), hintText: 'Age', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                      validator: (value) => value!.isEmpty ? 'Enter age' : null,
                     ),
                     const SizedBox(height: 16),
-
                     TextFormField(
                       controller: _emailController,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.email),
-                        hintText: 'Email',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                       keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty)
-                          return 'Enter your email';
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$')
-                            .hasMatch(value)) return 'Enter a valid email';
-                        return null;
-                      },
+                      decoration: InputDecoration(prefixIcon: const Icon(Icons.email), hintText: 'Email', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                      validator: (value) => value!.isEmpty ? 'Enter your email' : null,
                     ),
                     const SizedBox(height: 16),
-
                     TextFormField(
                       controller: _passwordController,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.lock),
-                        hintText: 'Password',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                       obscureText: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) return 'Enter password';
-                        if (value.length < 9) return 'Minimum 9 characters';
-                        return null;
-                      },
+                      decoration: InputDecoration(prefixIcon: const Icon(Icons.lock), hintText: 'Password', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                      validator: (value) => value!.length < 6 ? 'Password must be at least 6 characters' : null,
                     ),
                     const SizedBox(height: 16),
-
                     TextFormField(
                       controller: _confirmPasswordController,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        hintText: 'Confirm Password',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                       obscureText: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) return 'Confirm password';
-                        if (value != _passwordController.text) return 'Passwords do not match';
-                        return null;
-                      },
+                      decoration: InputDecoration(prefixIcon: const Icon(Icons.lock), hintText: 'Confirm Password', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                      validator: (value) => value != _passwordController.text ? "Passwords do not match" : null,
                     ),
                     const SizedBox(height: 24),
-
-                    Container(
+                    SizedBox(
                       width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Colors.lightBlue, Colors.blueAccent],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
                       child: ElevatedButton(
-                        onPressed: _submitForm,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Text(
-                          'Sign Up',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
+                        onPressed: _isLoading ? null : _submitForm,
+                        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: Colors.blueAccent),
+                        child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Sign Up", style: TextStyle(color: Colors.white)),
                       ),
                     ),
                     const SizedBox(height: 16),
-
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: const Text(
-                        "Already have an account? Login",
-                        style: TextStyle(
-                          color: Colors.blueAccent,
-                          decoration: TextDecoration.underline,
-                          fontSize: 16,
-                        ),
-                      ),
+                      child: const Text("Already have an account? Login", style: TextStyle(color: Colors.blueAccent, decoration: TextDecoration.underline, fontSize: 16)),
                     )
                   ],
                 ),
