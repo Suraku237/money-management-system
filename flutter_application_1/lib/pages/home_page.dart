@@ -11,19 +11,21 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF39A9A9),
+      backgroundColor: const Color.fromARGB(255, 7, 111, 238),
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFF39A9A9),
+        backgroundColor: const Color.fromARGB(255, 0, 149, 255),
         elevation: 0,
         title: const Text(
-          "My Wallet",
+          "money management system",
+        
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
+        
       ),
 
       body: Padding(

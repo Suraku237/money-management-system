@@ -28,17 +28,17 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   void _login() {
-    String email = _emailController.text.trim();
+    String name = _nameController.text.trim();
     String password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (name.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Please enter email and password"),
+          content: Text("Please enter name and password"),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -47,7 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     double initialBalance = 1000.0;
 
-    // Navigate to HomePage after login
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -84,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Welcome Back',
+                    'Welcome ',
                     style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -92,10 +91,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   TextField(
-                    controller: _emailController,
+                    controller: _nameController,
                     decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.email),
-                      hintText: 'Email',
+                      prefixIcon: const Icon(Icons.person),
+                      hintText: 'name',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -179,18 +178,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      double initialBalance = 1000.0;
+      // Return to LoginScreen after successful signup
+      Navigator.pop(context);
 
-      // Navigate directly to HomePage after sign-up
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomePage(currentBalance: initialBalance),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Account created! Please log in."),
+          backgroundColor: Colors.green,
         ),
       );
     }
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -227,7 +226,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Name
                     TextFormField(
                       controller: _nameController,
                       decoration: InputDecoration(
@@ -242,7 +240,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Age
                     TextFormField(
                       controller: _ageController,
                       decoration: InputDecoration(
@@ -264,7 +261,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Email
                     TextFormField(
                       controller: _emailController,
                       decoration: InputDecoration(
@@ -285,7 +281,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Password
                     TextFormField(
                       controller: _passwordController,
                       decoration: InputDecoration(
@@ -304,7 +299,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Confirm Password
                     TextFormField(
                       controller: _confirmPasswordController,
                       decoration: InputDecoration(
@@ -323,7 +317,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Sign Up button with gradient
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
