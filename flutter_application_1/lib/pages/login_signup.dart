@@ -173,8 +173,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  final TextEditingController _confirmPasswordController =TextEditingController();
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
@@ -293,7 +292,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       obscureText: true,
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Enter password';
-                        if (value.length < 6) return 'Minimum 6 characters';
+                        if (value.length < 9) return 'Minimum 9 characters';
                         return null;
                       },
                     ),
