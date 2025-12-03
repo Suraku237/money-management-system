@@ -107,10 +107,10 @@ class _WithdrawPageState extends State<WithdrawPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF39A9A9),
+      backgroundColor: const Color.fromARGB(255, 0, 170, 255),
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFF39A9A9),
+        backgroundColor: const Color.fromARGB(255, 0, 174, 255),
         elevation: 0,
         actions: [
           Padding(

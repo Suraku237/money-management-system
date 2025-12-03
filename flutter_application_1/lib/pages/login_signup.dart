@@ -44,27 +44,42 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<bool> loginUser(String username, String password) async {
     try {
-      final url = Uri.parse("http://127.0.0.1:5000/login");
+      // FOR WINDOWS DESKTOP - Use localhost
+      final url = Uri.parse("http://localhost:5000/login");
+      
+      print("Attempting to connect to: $url");
+      
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"username": username, "password": password}),
-      );
+      ).timeout(const Duration(seconds: 5)); // Reduced timeout
+
+      print("Login response status: ${response.statusCode}");
+      print("Login response body: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print("Parsed data: $data");
         return data["success"] == true;
       } else {
         _showMessage("Server error: ${response.statusCode}");
         return false;
       }
-    } catch (e) {
-      _showMessage("Network error");
+    } on http.ClientException catch (e) {
+      print("HTTP Client Exception: $e");
+      _showMessage("Connection refused. Is the server running?");
+      return false;
+    } on Exception catch (e) {
+      print("Exception: $e");
+      _showMessage("Connection failed: ${e.toString()}");
       return false;
     }
   }
 
   Future<void> _login() async {
+    if (_isLoading) return;
+    
     String username = _nameController.text.trim();
     String password = _passwordController.text.trim();
 
@@ -82,14 +97,17 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute(builder: (context) => HomePage(currentBalance: 1000)),
       );
-    } else {
-      _showMessage("Incorrect username or password");
     }
+    // Error messages are handled in loginUser function
   }
 
   void _showMessage(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -149,16 +167,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         backgroundColor: Colors.blueAccent,
                       ),
                       child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(color: Colors.white),
+                            )
                           : const Text('Login', style: TextStyle(fontSize: 18)),
                     ),
                   ),
                   const SizedBox(height: 16),
                   GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpScreen())),
-                    child: const Text(
+                    onTap: _isLoading ? null : () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpScreen())),
+                    child: Text(
                       "Don't have an account? Sign Up",
-                      style: TextStyle(color: Colors.blueAccent, decoration: TextDecoration.underline, fontSize: 16),
+                      style: TextStyle(
+                        color: _isLoading ? Colors.grey : Colors.blueAccent,
+                        decoration: TextDecoration.underline,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ],
@@ -201,7 +227,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<bool> registerUser(String username, String password, String confirmPassword, String age, String email) async {
     try {
-      final url = Uri.parse("http://127.0.0.1:5000/register");
+      // FOR WINDOWS DESKTOP - Use localhost
+      final url = Uri.parse("http://localhost:5000/register");
+      
+      print("Attempting to register at: $url");
+      
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
@@ -212,22 +242,42 @@ class _SignUpScreenState extends State<SignUpScreen> {
           "age": age,
           "email": email,
         }),
-      );
+      ).timeout(const Duration(seconds: 5)); // Reduced timeout
+
+      print("Register response status: ${response.statusCode}");
+      print("Register response body: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data["success"] == true;
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Server error: ${response.statusCode}")));
+        _showMessage("Server error: ${response.statusCode}");
         return false;
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Network error")));
+    } on http.ClientException catch (e) {
+      print("HTTP Client Exception: $e");
+      _showMessage("Connection refused. Is the server running?");
+      return false;
+    } on Exception catch (e) {
+      print("Exception: $e");
+      _showMessage("Connection failed: ${e.toString()}");
       return false;
     }
   }
 
+  void _showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   Future<void> _submitForm() async {
+    if (_isLoading) return;
+    
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -241,10 +291,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Account Created!")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Account Created Successfully!"),
+          backgroundColor: Colors.green,
+        ),
+      );
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Registration failed!")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Registration failed!"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -310,13 +370,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _submitForm,
                         style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: Colors.blueAccent),
-                        child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Sign Up", style: TextStyle(color: Colors.white)),
+                        child: _isLoading 
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white),
+                              )
+                            : const Text("Sign Up", style: TextStyle(color: Colors.white)),
                       ),
                     ),
                     const SizedBox(height: 16),
                     GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Text("Already have an account? Login", style: TextStyle(color: Colors.blueAccent, decoration: TextDecoration.underline, fontSize: 16)),
+                      onTap: _isLoading ? null : () => Navigator.pop(context),
+                      child: Text(
+                        "Already have an account? Login",
+                        style: TextStyle(
+                          color: _isLoading ? Colors.grey : Colors.blueAccent,
+                          decoration: TextDecoration.underline,
+                          fontSize: 16,
+                        ),
+                      ),
                     )
                   ],
                 ),
