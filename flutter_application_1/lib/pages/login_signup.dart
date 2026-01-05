@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'home_page.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -14,8 +13,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Login & SignUp App',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      title: 'Money Management System',
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.cyan,
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: Colors.white),
+        ),
+      ),
       home: const LoginScreen(),
     );
   }
@@ -35,166 +40,84 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<bool> loginUser(String username, String password) async {
-    try {
-      // FOR WINDOWS DESKTOP - Use localhost
-      final url = Uri.parse("http://localhost:5000/login");
-      
-      print("Attempting to connect to: $url");
-      
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"username": username, "password": password}),
-      ).timeout(const Duration(seconds: 5)); // Reduced timeout
-
-      print("Login response status: ${response.statusCode}");
-      print("Login response body: ${response.body}");
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print("Parsed data: $data");
-        return data["success"] == true;
-      } else {
-        _showMessage("Server error: ${response.statusCode}");
-        return false;
-      }
-    } on http.ClientException catch (e) {
-      print("HTTP Client Exception: $e");
-      _showMessage("Connection refused. Is the server running?");
-      return false;
-    } on Exception catch (e) {
-      print("Exception: $e");
-      _showMessage("Connection failed: ${e.toString()}");
-      return false;
-    }
-  }
-
-  Future<void> _login() async {
-    if (_isLoading) return;
-    
-    String username = _nameController.text.trim();
-    String password = _passwordController.text.trim();
-
-    if (username.isEmpty || password.isEmpty) {
-      _showMessage("Please fill all fields");
-      return;
-    }
-
+  void _login() {
     setState(() => _isLoading = true);
-    bool success = await loginUser(username, password);
-    setState(() => _isLoading = false);
-
-    if (success) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomePage(currentBalance: 1000)),
-      );
-    }
-    // Error messages are handled in loginUser function
-  }
-
-  void _showMessage(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    
+    // Simulate a short delay then go to Home Page
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage(currentBalance: 1000.0)),
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blueAccent, Colors.lightBlue],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Container(
+      body: Stack(
+        children: [
+          _buildBackground(),
+          Center(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, spreadRadius: 5)],
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Welcome',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-                  ),
-                  const SizedBox(height: 24),
-                  TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.person),
-                      hintText: 'Username',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              child: _buildGlassContainer(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.account_balance_wallet, size: 60, color: Color(0xFFE2C08D)),
+                    const SizedBox(height: 15),
+                    const Text(
+                      "To Manage your money",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: 1, color: Colors.white),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.lock),
-                      hintText: 'Password',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 10),
+                    const Text("Secure & Simple Access", style: TextStyle(color: Colors.white70)),
+                    const SizedBox(height: 40),
+                    _buildInput(_nameController, "Username", Icons.person_outline),
+                    const SizedBox(height: 20),
+                    _buildInput(_passwordController, "Password", Icons.lock_outline, isObscure: true),
+                    const SizedBox(height: 40),
+                    _buildButton("LOG IN", _login),
+                    const SizedBox(height: 30),
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpScreen())),
+                      child: const Text("Don't have an account? Sign Up", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _login,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.blueAccent,
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(color: Colors.white),
-                            )
-                          : const Text('Login', style: TextStyle(fontSize: 18)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  GestureDetector(
-                    onTap: _isLoading ? null : () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpScreen())),
-                    child: Text(
-                      "Don't have an account? Sign Up",
-                      style: TextStyle(
-                        color: _isLoading ? Colors.grey : Colors.blueAccent,
-                        decoration: TextDecoration.underline,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
+
+  Widget _buildBackground() => Container(decoration: const BoxDecoration(gradient: RadialGradient(center: Alignment.center, radius: 1.5, colors: [Color(0xFF1B3B44), Color(0xFF0F171A)])));
+
+  Widget _buildGlassContainer({required Widget child}) => ClipRRect(borderRadius: BorderRadius.circular(30), child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), child: Container(padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40), decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white.withOpacity(0.1))), child: child)));
+
+  Widget _buildInput(TextEditingController controller, String hint, IconData icon, {bool isObscure = false}) => TextField(
+    controller: controller, 
+    obscureText: isObscure, 
+    style: const TextStyle(color: Colors.white),
+    decoration: InputDecoration(
+      hintText: hint, 
+      hintStyle: const TextStyle(color: Colors.white54),
+      prefixIcon: Icon(icon, color: Colors.cyan), 
+      filled: true, 
+      fillColor: Colors.black26, 
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.white.withOpacity(0.2))), 
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.cyan))
+    )
+  );
+
+  Widget _buildButton(String text, VoidCallback onPressed) => SizedBox(width: double.infinity, height: 55, child: ElevatedButton(onPressed: _isLoading ? null : onPressed, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF005A6E), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), side: const BorderSide(color: Color(0xFFE2C08D))), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(text, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white))));
 }
 
 // -------------------- SIGNUP SCREEN --------------------
@@ -215,189 +138,85 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _ageController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
-  }
-
-  Future<bool> registerUser(String username, String password, String confirmPassword, String age, String email) async {
-    try {
-      // FOR WINDOWS DESKTOP - Use localhost
-      final url = Uri.parse("http://localhost:5000/register");
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
       
-      print("Attempting to register at: $url");
-      
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "username": username,
-          "password": password,
-          "confirm_password": confirmPassword,
-          "age": age,
-          "email": email,
-        }),
-      ).timeout(const Duration(seconds: 5)); // Reduced timeout
-
-      print("Register response status: ${response.statusCode}");
-      print("Register response body: ${response.body}");
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data["success"] == true;
-      } else {
-        _showMessage("Server error: ${response.statusCode}");
-        return false;
-      }
-    } on http.ClientException catch (e) {
-      print("HTTP Client Exception: $e");
-      _showMessage("Connection refused. Is the server running?");
-      return false;
-    } on Exception catch (e) {
-      print("Exception: $e");
-      _showMessage("Connection failed: ${e.toString()}");
-      return false;
-    }
-  }
-
-  void _showMessage(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  Future<void> _submitForm() async {
-    if (_isLoading) return;
-    
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-    bool success = await registerUser(
-      _nameController.text.trim(),
-      _passwordController.text.trim(),
-      _confirmPasswordController.text.trim(),
-      _ageController.text.trim(),
-      _emailController.text.trim(),
-    );
-    setState(() => _isLoading = false);
-
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Account Created Successfully!"),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Registration failed!"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Simulate account creation
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Account Created! (Offline Mode)"), backgroundColor: Colors.green));
+          Navigator.pop(context);
+        }
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [Colors.lightBlue, Colors.blueAccent], begin: Alignment.topCenter, end: Alignment.bottomCenter),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Container(
+      body: Stack(
+        children: [
+          _buildBackground(),
+          Center(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, spreadRadius: 5)],
-              ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    const Text("Create Your Account", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(prefixIcon: const Icon(Icons.person), hintText: 'Username', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-                      validator: (value) => value!.isEmpty ? 'Please enter your name' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _ageController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(prefixIcon: const Icon(Icons.cake), hintText: 'Age', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-                      validator: (value) => value!.isEmpty ? 'Enter age' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(prefixIcon: const Icon(Icons.email), hintText: 'Email', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-                      validator: (value) => value!.isEmpty ? 'Enter your email' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(prefixIcon: const Icon(Icons.lock), hintText: 'Password', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-                      validator: (value) => value!.length < 6 ? 'Password must be at least 6 characters' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _confirmPasswordController,
-                      obscureText: true,
-                      decoration: InputDecoration(prefixIcon: const Icon(Icons.lock), hintText: 'Confirm Password', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-                      validator: (value) => value != _passwordController.text ? "Passwords do not match" : null,
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _submitForm,
-                        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), backgroundColor: Colors.blueAccent),
-                        child: _isLoading 
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(color: Colors.white),
-                              )
-                            : const Text("Sign Up", style: TextStyle(color: Colors.white)),
+              child: _buildGlassContainer(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      const Text("CREATE ACCOUNT", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white)),
+                      const SizedBox(height: 30),
+                      _buildRegInput(_nameController, "Username", Icons.person, (v) => v!.isEmpty ? 'Required' : null),
+                      const SizedBox(height: 15),
+                      _buildRegInput(_ageController, "Age", Icons.cake, (v) => v!.isEmpty ? 'Required' : null, isNum: true),
+                      const SizedBox(height: 15),
+                      _buildRegInput(_emailController, "Email", Icons.email, (v) => v!.isEmpty ? 'Required' : null),
+                      const SizedBox(height: 15),
+                      _buildRegInput(_passwordController, "Password", Icons.lock, (v) => v!.length < 6 ? 'Min 6 chars' : null, isObscure: true),
+                      const SizedBox(height: 15),
+                      _buildRegInput(_confirmPasswordController, "Confirm Password", Icons.lock_reset, (v) => v != _passwordController.text ? "Mismatch" : null, isObscure: true),
+                      const SizedBox(height: 30),
+                      _buildButton("SIGN UP", _submitForm),
+                      const SizedBox(height: 20),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Text("Already have an account? Login", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: _isLoading ? null : () => Navigator.pop(context),
-                      child: Text(
-                        "Already have an account? Login",
-                        style: TextStyle(
-                          color: _isLoading ? Colors.grey : Colors.blueAccent,
-                          decoration: TextDecoration.underline,
-                          fontSize: 16,
-                        ),
-                      ),
-                    )
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
+
+  Widget _buildBackground() => Container(decoration: const BoxDecoration(gradient: RadialGradient(center: Alignment.center, radius: 1.5, colors: [Color(0xFF1B3B44), Color(0xFF0F171A)])));
+
+  Widget _buildGlassContainer({required Widget child}) => ClipRRect(borderRadius: BorderRadius.circular(30), child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), child: Container(padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30), decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white.withOpacity(0.1))), child: child)));
+
+  Widget _buildRegInput(TextEditingController controller, String hint, IconData icon, String? Function(String?)? validator, {bool isObscure = false, bool isNum = false}) => TextFormField(
+    controller: controller, 
+    obscureText: isObscure, 
+    keyboardType: isNum ? TextInputType.number : TextInputType.text, 
+    validator: validator, 
+    style: const TextStyle(fontSize: 14, color: Colors.white), 
+    decoration: InputDecoration(
+      hintText: hint, 
+      hintStyle: const TextStyle(color: Colors.white54),
+      prefixIcon: Icon(icon, color: Colors.cyan, size: 20), 
+      filled: true, 
+      fillColor: Colors.black26, 
+      contentPadding: const EdgeInsets.symmetric(vertical: 15), 
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.1))), 
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.cyan))
+    )
+  );
+
+  Widget _buildButton(String text, VoidCallback onPressed) => SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _isLoading ? null : onPressed, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF005A6E), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), side: const BorderSide(color: Color(0xFFE2C08D))), child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))));
 }

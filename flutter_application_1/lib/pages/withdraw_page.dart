@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 class WithdrawPage extends StatefulWidget {
   final double currentBalance;
@@ -16,227 +17,189 @@ class _WithdrawPageState extends State<WithdrawPage> {
 
   String selectedCountry = "Cameroon";
   String countryCode = "+237";
+  bool _isLoading = false;
 
-  String? errorMessage;
-
-  // Country phone validation rules
   final Map<String, Map<String, dynamic>> phoneRules = {
-    "Cameroon": {"code": "+237", "length": 9, "starts": ["6", "2"]},
-    "Nigeria": {"code": "+234", "length": 10, "starts": ["7", "8", "9"]},
-    "Ghana": {"code": "+233", "length": 9, "starts": ["2", "5"]},
-    "Kenya": {"code": "+254", "length": 9, "starts": ["7"]},
-    "South Africa": {"code": "+27", "length": 9, "starts": ["6", "7"]},
-    "India": {"code": "+91", "length": 10, "starts": ["6", "7", "8", "9"]},
+    "Cameroon": {"code": "+237", "length": 9},
+    "Nigeria": {"code": "+234", "length": 10},
+    "Ghana": {"code": "+233", "length": 9},
+    "Kenya": {"code": "+254", "length": 9},
   };
 
-  bool validatePhoneNumber() {
-    String number = _phoneController.text.trim();
-
-    var rules = phoneRules[selectedCountry]!;
-    int requiredLength = rules["length"];
-    List<dynamic> startsWith = rules["starts"];
-
-    if (number.length != requiredLength) {
-      setState(() {
-        errorMessage =
-            "Phone number must be $requiredLength digits for $selectedCountry.";
-      });
-      return false;
-    }
-
-    bool prefixValid = false;
-    for (var prefix in startsWith) {
-      if (number.startsWith(prefix)) {
-        prefixValid = true;
-        break;
-      }
-    }
-
-    if (!prefixValid) {
-      setState(() {
-        errorMessage =
-            "Phone number must start with ${startsWith.join(" or ")} for $selectedCountry.";
-      });
-      return false;
-    }
-
-    return true;
-  }
-
   void _handleWithdraw() {
-    if (!validatePhoneNumber()) return;
+    final double? amount = double.tryParse(_amountController.text);
 
-    if (_amountController.text.trim().isEmpty) {
-      setState(() => errorMessage = "Please enter an amount.");
-      return;
-    }
-
-    final amount = double.tryParse(_amountController.text.trim());
-
-    if (amount == null || amount <= 0) {
-      setState(() => errorMessage = "Enter a valid amount.");
+    if (amount == null || _phoneController.text.isEmpty || _pinController.text.isEmpty) {
+      _showSnackBar("Please fill all fields", Colors.redAccent);
       return;
     }
 
     if (amount > widget.currentBalance) {
-      setState(() => errorMessage = "Not enough balance.");
+      _showSnackBar("Insufficient balance", Colors.redAccent);
       return;
     }
 
-    setState(() => errorMessage = null);
+    setState(() => _isLoading = true);
 
-    String fullNumber =
-        "${phoneRules[selectedCountry]!["code"]} ${_phoneController.text.trim()}";
+    // Simulate withdraw processing offline
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Navigator.pop(context);
+        _showSnackBar("Successfully withdrawn ${amount.toStringAsFixed(0)} FCFA", Colors.green);
+      }
+    });
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Withdrawal Successful"),
-        content: Text(
-            "You withdrew ${amount.toStringAsFixed(0)} FCFA\nPhone: $fullNumber"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("OK"),
-          )
-        ],
-      ),
-    );
+  void _showSnackBar(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 0, 170, 255),
+      body: Stack(
+        children: [
+          _buildBackground(),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildAppBar(context),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildGlassContainer(
+                      child: Column(
+                        children: [
+                          const Icon(Icons.outbox_rounded, size: 60, color: Color(0xFFE2C08D)),
+                          const SizedBox(height: 15),
+                          const Text("Withdraw Funds", 
+                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                          const Text("Transfer money to your mobile account", 
+                            style: TextStyle(color: Colors.white70)),
+                          const SizedBox(height: 30),
 
-      appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 0, 174, 255),
-        elevation: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                "Balance: ${widget.currentBalance.toStringAsFixed(0)} FCFA",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                          // Country Selector
+                          _buildDropdown(),
+                          const SizedBox(height: 20),
+
+                          // Phone Input
+                          _buildInput(_phoneController, "Recipient Phone", Icons.phone_android, isNum: true),
+                          const SizedBox(height: 20),
+
+                          // Amount Input
+                          _buildInput(_amountController, "Amount (FCFA)", Icons.money_off_rounded, isNum: true),
+                          const SizedBox(height: 20),
+
+                          // PIN Input
+                          _buildInput(_pinController, "Secure PIN", Icons.lock_outline, isObscure: true, isNum: true),
+                          
+                          const SizedBox(height: 40),
+
+                          _buildButton("CONFIRM WITHDRAWAL", _handleWithdraw),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
 
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+  // --- UI COMPONENTS ---
 
-            const Text(
-              "Withdraw",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
+  Widget _buildBackground() => Container(decoration: const BoxDecoration(gradient: RadialGradient(center: Alignment.center, radius: 1.5, colors: [Color(0xFF1B3B44), Color(0xFF0F171A)])));
 
-            const SizedBox(height: 20),
+  Widget _buildAppBar(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+    child: Row(
+      children: [
+        IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        const Text("Withdraw", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+      ],
+    ),
+  );
 
-            // Country selector
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(),
-              ),
-              child: DropdownButton<String>(
-                isExpanded: true,
-                value: selectedCountry,
-                underline: const SizedBox(),
-                items: phoneRules.keys.map((country) {
-                  return DropdownMenuItem(
-                    value: country,
-                    child: Text(country),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedCountry = value!;
-                    countryCode = phoneRules[value]!["code"];
-                  });
-                },
-              ),
-            ),
+  Widget _buildGlassContainer({required Widget child}) => ClipRRect(
+    borderRadius: BorderRadius.circular(30),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 35),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: child,
+      ),
+    ),
+  );
 
-            const SizedBox(height: 15),
-
-            // Phone input
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                labelText:
-                    "Phone Number (${phoneRules[selectedCountry]!["code"]})",
-                border: const OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            // Amount
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                labelText: "Withdraw Amount (FCFA)",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            // PIN (hidden)
-            TextField(
-              controller: _pinController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                labelText: "PIN Code",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            if (errorMessage != null)
-              Text(errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontSize: 14)),
-
-            const Spacer(),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _handleWithdraw,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                ),
-                child: const Text("Withdraw"),
-              ),
-            ),
-          ],
+  Widget _buildDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedCountry,
+          dropdownColor: const Color(0xFF0F171A),
+          isExpanded: true,
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.cyan),
+          items: phoneRules.keys.map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value, style: const TextStyle(color: Colors.white)),
+            );
+          }).toList(),
+          onChanged: (val) {
+            setState(() {
+              selectedCountry = val!;
+              countryCode = phoneRules[val]!["code"];
+            });
+          },
         ),
       ),
     );
   }
+
+  Widget _buildInput(TextEditingController controller, String hint, IconData icon, {bool isObscure = false, bool isNum = false}) => TextField(
+    controller: controller,
+    obscureText: isObscure,
+    keyboardType: isNum ? TextInputType.number : TextInputType.text,
+    style: const TextStyle(color: Colors.white),
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.white54),
+      prefixIcon: Icon(icon, color: Colors.cyan),
+      filled: true,
+      fillColor: Colors.black26,
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.white.withOpacity(0.2))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.cyan)),
+    ),
+  );
+
+  Widget _buildButton(String text, VoidCallback onPressed) => SizedBox(
+    width: double.infinity,
+    height: 55,
+    child: ElevatedButton(
+      onPressed: _isLoading ? null : onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF005A6E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        side: const BorderSide(color: Color(0xFFE2C08D)),
+      ),
+      child: _isLoading 
+        ? const CircularProgressIndicator(color: Colors.white)
+        : Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+    ),
+  );
 }

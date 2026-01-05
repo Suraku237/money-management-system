@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 class DepositPage extends StatefulWidget {
   final double currentBalance;
@@ -16,207 +17,185 @@ class _DepositPageState extends State<DepositPage> {
 
   String selectedCountry = "Cameroon";
   String countryCode = "+237";
+  bool _isLoading = false;
 
-  String? errorMessage;
-
-  // Phone validation rules
   final Map<String, Map<String, dynamic>> phoneRules = {
-    "Cameroon": {"code": "+237", "length": 9, "starts": ["6", "2"]},
-    "Nigeria": {"code": "+234", "length": 10, "starts": ["7", "8", "9"]},
-    "Ghana": {"code": "+233", "length": 9, "starts": ["2", "5"]},
-    "Kenya": {"code": "+254", "length": 9, "starts": ["7"]},
-    "South Africa": {"code": "+27", "length": 9, "starts": ["6", "7"]},
-    "India": {"code": "+91", "length": 10, "starts": ["6", "7", "8", "9"]},
+    "Cameroon": {"code": "+237", "length": 9},
+    "Nigeria": {"code": "+234", "length": 10},
+    "Ghana": {"code": "+233", "length": 9},
+    "Kenya": {"code": "+254", "length": 9},
   };
 
-  bool validatePhoneNumber() {
-    String number = _phoneController.text.trim();
-
-    var rules = phoneRules[selectedCountry]!;
-    int requiredLength = rules["length"];
-    List<dynamic> startsWith = rules["starts"];
-
-    if (number.length != requiredLength) {
-      setState(() {
-        errorMessage =
-            "Phone number must be $requiredLength digits for $selectedCountry.";
-      });
-      return false;
-    }
-
-    bool prefixValid = startsWith.any((prefix) => number.startsWith(prefix));
-
-    if (!prefixValid) {
-      setState(() {
-        errorMessage =
-            "Phone number must start with ${startsWith.join(" or ")} for $selectedCountry.";
-      });
-      return false;
-    }
-
-    return true;
-  }
-
   void _handleDeposit() {
-    if (!validatePhoneNumber()) return;
-
-    if (_amountController.text.trim().isEmpty) {
-      setState(() => errorMessage = "Please enter an amount.");
+    if (_amountController.text.isEmpty || _phoneController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all fields"), backgroundColor: Colors.redAccent),
+      );
       return;
     }
 
-    final amount = double.tryParse(_amountController.text.trim());
+    setState(() => _isLoading = true);
 
-    if (amount == null || amount <= 0) {
-      setState(() => errorMessage = "Enter a valid amount.");
-      return;
-    }
-
-    setState(() => errorMessage = null);
-
-    String fullNumber =
-        "${phoneRules[selectedCountry]!["code"]} ${_phoneController.text.trim()}";
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Deposit Successful"),
-        content: Text(
-            "You deposited ${amount.toStringAsFixed(0)} FCFA\nPhone: $fullNumber"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("OK"),
-          )
-        ],
-      ),
-    );
+    // Simulate deposit processing
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Successfully deposited ${_amountController.text} FCFA"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 0, 170, 255),
+      body: Stack(
+        children: [
+          _buildBackground(),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildAppBar(context),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildGlassContainer(
+                      child: Column(
+                        children: [
+                          const Icon(Icons.add_chart_rounded, size: 60, color: Color(0xFFE2C08D)),
+                          const SizedBox(height: 15),
+                          const Text("Deposit Funds", 
+                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                          const Text("Top up your wallet securely", 
+                            style: TextStyle(color: Colors.white70)),
+                          const SizedBox(height: 30),
 
-      appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 0, 170, 255),
-        elevation: 0,
-        title: const Text("Deposit"),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context), //  BACK TO HOME
-        ),
-      ),
+                          // Country Selector
+                          _buildDropdown(),
+                          const SizedBox(height: 20),
 
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+                          // Phone Input
+                          _buildInput(_phoneController, "Phone Number", Icons.phone_android, isNum: true),
+                          const SizedBox(height: 20),
 
-            const Text(
-              "Deposit",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
+                          // Amount Input
+                          _buildInput(_amountController, "Amount (FCFA)", Icons.account_balance_wallet, isNum: true),
+                          const SizedBox(height: 20),
 
-            const SizedBox(height: 20),
+                          // PIN Input
+                          _buildInput(_pinController, "PIN Code", Icons.lock_outline, isObscure: true, isNum: true),
+                          
+                          const SizedBox(height: 40),
 
-            // Country selector
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(),
-              ),
-              child: DropdownButton<String>(
-                isExpanded: true,
-                value: selectedCountry,
-                underline: const SizedBox(),
-                items: phoneRules.keys.map((country) {
-                  return DropdownMenuItem(
-                    value: country,
-                    child: Text(country),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedCountry = value!;
-                    countryCode = phoneRules[value]!["code"];
-                  });
-                },
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            // Phone input
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                labelText:
-                    "Phone Number (${phoneRules[selectedCountry]!["code"]})",
-                border: const OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            // Amount
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                labelText: "Deposit Amount (FCFA)",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            // PIN
-            TextField(
-              controller: _pinController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                labelText: "PIN Code",
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            if (errorMessage != null)
-              Text(errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontSize: 14)),
-
-            const Spacer(),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _handleDeposit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
+                          _buildButton("CONFIRM DEPOSIT", _handleDeposit),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                child: const Text("Deposit"),
-              ),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- UI COMPONENTS ---
+
+  Widget _buildBackground() => Container(decoration: const BoxDecoration(gradient: RadialGradient(center: Alignment.center, radius: 1.5, colors: [Color(0xFF1B3B44), Color(0xFF0F171A)])));
+
+  Widget _buildAppBar(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+    child: Row(
+      children: [
+        IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        const Text("Deposit", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+      ],
+    ),
+  );
+
+  Widget _buildGlassContainer({required Widget child}) => ClipRRect(
+    borderRadius: BorderRadius.circular(30),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 35),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: child,
+      ),
+    ),
+  );
+
+  Widget _buildDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedCountry,
+          dropdownColor: const Color(0xFF0F171A),
+          isExpanded: true,
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.cyan),
+          items: phoneRules.keys.map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value, style: const TextStyle(color: Colors.white)),
+            );
+          }).toList(),
+          onChanged: (val) {
+            setState(() {
+              selectedCountry = val!;
+              countryCode = phoneRules[val]!["code"];
+            });
+          },
         ),
       ),
     );
   }
+
+  Widget _buildInput(TextEditingController controller, String hint, IconData icon, {bool isObscure = false, bool isNum = false}) => TextField(
+    controller: controller,
+    obscureText: isObscure,
+    keyboardType: isNum ? TextInputType.number : TextInputType.text,
+    style: const TextStyle(color: Colors.white),
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.white54),
+      prefixIcon: Icon(icon, color: Colors.cyan),
+      filled: true,
+      fillColor: Colors.black26,
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.white.withOpacity(0.2))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.cyan)),
+    ),
+  );
+
+  Widget _buildButton(String text, VoidCallback onPressed) => SizedBox(
+    width: double.infinity,
+    height: 55,
+    child: ElevatedButton(
+      onPressed: _isLoading ? null : onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF005A6E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        side: const BorderSide(color: Color(0xFFE2C08D)),
+      ),
+      child: _isLoading 
+        ? const CircularProgressIndicator(color: Colors.white)
+        : Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+    ),
+  );
 }
