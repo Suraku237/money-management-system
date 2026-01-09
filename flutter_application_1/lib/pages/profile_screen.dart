@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'login_signup.dart'; // To navigate back on logout
+import 'login_signup.dart'; 
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+class ProfileScreen extends StatefulWidget {
+  // This map will hold the user data (id, username, email, etc.) from SQLite
+  final Map<String, dynamic> user;
 
+  const ProfileScreen({super.key, required this.user});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // Dark Radial Background
+          // Background
           Container(
             decoration: const BoxDecoration(
               gradient: RadialGradient(
@@ -23,57 +31,16 @@ class ProfileScreen extends StatelessWidget {
           SafeArea(
             child: Column(
               children: [
-                // Custom App Bar
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const Text(
-                        "My Profile",
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-                
+                _buildAppBar(context),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // Profile Picture Section
-                        Center(
-                          child: Stack(
-                            children: [
-                              CircleAvatar(
-                                radius: 60,
-                                backgroundColor: Colors.white.withOpacity(0.1),
-                                child: const Icon(Icons.person, size: 80, color: Color(0xFFE2C08D)),
-                              ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: CircleAvatar(
-                                  radius: 18,
-                                  backgroundColor: Colors.cyan,
-                                  child: Icon(Icons.edit, size: 18, color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _buildProfilePicture(),
                         const SizedBox(height: 30),
-
-                        // Glass Container for Info
                         _buildGlassInfoCard(),
-
                         const SizedBox(height: 30),
-
-                        // Logout Button
                         _buildLogoutButton(context),
                       ],
                     ),
@@ -86,6 +53,43 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildAppBar(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        const Text(
+          "My Profile",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildProfilePicture() => Center(
+    child: Stack(
+      children: [
+        CircleAvatar(
+          radius: 60,
+          backgroundColor: Colors.white.withOpacity(0.1),
+          child: const Icon(Icons.person, size: 80, color: Color(0xFFE2C08D)),
+        ),
+        const Positioned(
+          bottom: 0,
+          right: 0,
+          child: CircleAvatar(
+            radius: 18,
+            backgroundColor: Colors.cyan,
+            child: Icon(Icons.edit, size: 18, color: Colors.white),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildGlassInfoCard() {
     return ClipRRect(
@@ -101,11 +105,13 @@ class ProfileScreen extends StatelessWidget {
           ),
           child: Column(
             children: [
-              _infoRow(Icons.person_outline, "Username", "User_Name"),
+              // We use widget.user['key'] to pull data from the Map passed to this screen
+              _infoRow(Icons.person_outline, "Username", widget.user['username'] ?? "N/A"),
               const Divider(color: Colors.white10, height: 30),
-              _infoRow(Icons.email_outlined, "Email", "user@example.com"),
+              _infoRow(Icons.email_outlined, "Email", widget.user['email'] ?? "N/A"),
               const Divider(color: Colors.white10, height: 30),
-              _infoRow(Icons.phone_android, "Phone", "+237 6XX XXX XXX"),
+              // Note: Ensure your signup logic saves 'phone' to the DB for this to show up
+              _infoRow(Icons.phone_android, "Account ID", "User ID: ${widget.user['id']}"),
             ],
           ),
         ),
@@ -145,7 +151,7 @@ class ProfileScreen extends StatelessWidget {
         onPressed: () {
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            MaterialPageRoute(builder: (context) => const LoginSignupScreen()),
             (route) => false,
           );
         },

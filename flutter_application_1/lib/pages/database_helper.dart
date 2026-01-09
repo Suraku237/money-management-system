@@ -19,9 +19,8 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 1, 
       onCreate: _createDB,
-      // This ensures foreign keys work (needed for linking transactions to users)
       onConfigure: (db) async => await db.execute('PRAGMA foreign_keys = ON'),
     );
   }
@@ -34,65 +33,92 @@ class DatabaseHelper {
         username TEXT NOT NULL,
         email TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
+        phone TEXT NOT NULL UNIQUE,
+        pin TEXT NOT NULL UNIQUE,
         balance REAL DEFAULT 0.0
       )
     ''');
 
     // 2. Transactions Table
-    await db.execute('''
-      CREATE TABLE transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        type TEXT, -- 'deposit' or 'withdraw'
-        amount REAL,
-        date TEXT,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      )
-    ''');
+  await db.execute('''
+    CREATE TABLE transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+  ''');
   }
 
-  // --- ACTIONS ---
+  // --- AUTHENTICATION METHODS ---
 
-  // Create a new user
+  // For Signup: Adds a new user
   Future<int> insertUser(Map<String, dynamic> row) async {
     final db = await instance.database;
     return await db.insert('users', row);
   }
 
-  // Verify Login
+  // For Login: Checks credentials
   Future<Map<String, dynamic>?> checkUser(String email, String password) async {
     final db = await instance.database;
-    final results = await db.query(
+    final res = await db.query(
       'users',
       where: 'email = ? AND password = ?',
       whereArgs: [email, password],
     );
-    return results.isNotEmpty ? results.first : null;
+    return res.isNotEmpty ? res.first : null;
   }
 
-  // Get fresh user data (used for Home Page refresh)
+  // For Refreshing Home Page: Gets latest user data by email
   Future<Map<String, dynamic>?> getUser(String email) async {
     final db = await instance.database;
-    final maps = await db.query('users', where: 'email = ?', whereArgs: [email]);
-    if (maps.isNotEmpty) {
-      return maps.first;
-    }
-    return null;
+    final res = await db.query('users', where: 'email = ?', whereArgs: [email]);
+    return res.isNotEmpty ? res.first : null;
   }
 
-  // The "Engine": Updates balance and logs history in one go
-  Future<void> updateBalance(int userId, double amount, String type) async {
+  // --- TRANSACTION METHODS ---
+
+  // For Deposit/Withdraw: Handles balance updates and history logging
+  Future<void> updateBalance({
+    required int userId, 
+    required double amount, 
+    required String type, 
+    required String providedPhone,
+    required String providedPin,
+  }) async {
     final db = await instance.database;
 
-    // Use a transaction to ensure both steps happen or neither happens
+    final userList = await db.query('users', where: 'id = ?', whereArgs: [userId]);
+    if (userList.isEmpty) throw Exception("User not found");
+    
+    final user = userList.first;
+    final String registeredPhone = user['phone'] as String;
+    final String registeredPin = user['pin'] as String;
+    final double currentBalance = (user['balance'] as num).toDouble();
+
+    // Logic: Withdrawals must match registered Phone/PIN
+    if (type == 'withdraw') {
+      if (providedPhone != registeredPhone) {
+        throw Exception("Withdrawal only allowed with registered phone: $registeredPhone");
+      }
+      if (providedPin != registeredPin) {
+        throw Exception("Incorrect PIN code");
+      }
+      if (currentBalance < amount) {
+        throw Exception("Insufficient balance");
+      }
+    }
+
     await db.transaction((txn) async {
-      // 1. Update the balance
+      // Update Balance
       await txn.rawUpdate(
         'UPDATE users SET balance = balance + ? WHERE id = ?',
         [type == 'deposit' ? amount : -amount, userId],
       );
 
-      // 2. Create the history record
+      // Insert History Record
       await txn.insert('transactions', {
         'user_id': userId,
         'type': type,
@@ -102,7 +128,7 @@ class DatabaseHelper {
     });
   }
 
-  // Get transaction history for the user
+  // For Home Page Activity: Gets history for a specific user
   Future<List<Map<String, dynamic>>> getTransactions(int userId) async {
     final db = await instance.database;
     return await db.query(
@@ -111,5 +137,11 @@ class DatabaseHelper {
       whereArgs: [userId],
       orderBy: 'date DESC',
     );
+  }
+
+  // For Manage Page: Deletes a specific transaction
+  Future<int> deleteTransaction(int id) async {
+    final db = await instance.database;
+    return await db.delete('transactions', where: 'id = ?', whereArgs: [id]);
   }
 }
