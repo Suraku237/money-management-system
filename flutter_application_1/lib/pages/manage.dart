@@ -2,31 +2,40 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 
 class ManagePage extends StatefulWidget {
-  const ManagePage({super.key});
+  final double currentBalance;
+  final int userId;
+
+  // Receives live data from the database via HomePage
+  const ManagePage({super.key, required this.currentBalance, required this.userId});
 
   @override
   State<ManagePage> createState() => _ManagePageState();
 }
 
 class _ManagePageState extends State<ManagePage> {
-  final TextEditingController moneyController = TextEditingController();
   final TextEditingController daysController = TextEditingController();
-
   double? result;
 
   void manageMoney() {
-    final double? money = double.tryParse(moneyController.text);
+    // We use widget.currentBalance directly for the calculation
     final int? days = int.tryParse(daysController.text);
 
-    if (money == null || days == null || days == 0) {
+    if (days == null || days <= 0) {
       setState(() {
         result = null;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter a valid number of days"), 
+          backgroundColor: Colors.orange
+        ),
+      );
       return;
     }
 
     setState(() {
-      result = money / days;
+      // Logic: Actual Database Balance divided by Days remaining
+      result = widget.currentBalance / days;
     });
   }
 
@@ -35,9 +44,7 @@ class _ManagePageState extends State<ManagePage> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background matching Login/Home
           _buildBackground(),
-          
           SafeArea(
             child: Column(
               children: [
@@ -48,32 +55,22 @@ class _ManagePageState extends State<ManagePage> {
                     child: _buildGlassContainer(
                       child: Column(
                         children: [
-                          const Icon(Icons.pie_chart, size: 60, color: Color(0xFFE2C08D)),
+                          const Icon(Icons.auto_graph_rounded, size: 60, color: Color(0xFFE2C08D)),
                           const SizedBox(height: 15),
-                          const Text(
-                            "Budget Planner",
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                          const Text(
-                            "Calculate your daily spending limit",
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                          const SizedBox(height: 40),
+                          const Text("Budget Planner", 
+                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                          const Text("Smart spending based on your balance", style: TextStyle(color: Colors.white70)),
+                          const SizedBox(height: 30),
+
+                          // Displays the LIVE balance from the database
+                          _buildBalanceDisplay(),
                           
-                          // Money Input
-                          _buildInput(moneyController, "Total Amount (FCFA)", Icons.account_balance_wallet_outlined),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 25),
+                          _buildInput(daysController, "How many days should this last?", Icons.timer_outlined),
                           
-                          // Days Input
-                          _buildInput(daysController, "Number of Days", Icons.calendar_today_outlined, isNum: true),
-                          const SizedBox(height: 40),
-                          
-                          // Calculate Button
-                          _buildButton("CALCULATE DAILY BUDGET", manageMoney),
-                          
-                          const SizedBox(height: 40),
-                          
-                          // Result Section
+                          const SizedBox(height: 30),
+                          _buildButton("CALCULATE DAILY LIMIT", manageMoney),
+
                           if (result != null) _buildResultCard(),
                         ],
                       ),
@@ -88,38 +85,57 @@ class _ManagePageState extends State<ManagePage> {
     );
   }
 
-  Widget _buildResultCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.cyan.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.cyan.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          const Text("Recommended Daily Spend", style: TextStyle(color: Colors.cyan, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Text(
-            "${result!.toStringAsFixed(0)} FCFA",
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          const SizedBox(height: 5),
-          const Text("Stay under this to reach your goal", style: TextStyle(color: Colors.white54, fontSize: 12)),
-        ],
-      ),
-    );
-  }
+  // --- UI COMPONENTS ---
 
-  // UI Helper Components
-  Widget _buildBackground() => Container(decoration: const BoxDecoration(gradient: RadialGradient(center: Alignment.center, radius: 1.5, colors: [Color(0xFF1B3B44), Color(0xFF0F171A)])));
+  Widget _buildBalanceDisplay() => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.black26, 
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: Colors.white10)
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text("Wallet Balance:", style: TextStyle(color: Colors.white70)),
+        Text("${widget.currentBalance.toStringAsFixed(0)} FCFA", 
+          style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+      ],
+    ),
+  );
+
+  Widget _buildResultCard() => Container(
+    margin: const EdgeInsets.only(top: 30),
+    padding: const EdgeInsets.all(20),
+    width: double.infinity,
+    decoration: BoxDecoration(
+      gradient: LinearGradient(colors: [Colors.cyan.withOpacity(0.2), Colors.transparent]),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.cyan.withOpacity(0.3)),
+    ),
+    child: Column(
+      children: [
+        const Text("DAILY SPENDING LIMIT", style: TextStyle(color: Colors.white70, letterSpacing: 1.2, fontSize: 12)),
+        const SizedBox(height: 10),
+        Text("${result!.toStringAsFixed(2)} FCFA", 
+          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 5),
+        const Text("Stay under this to reach your goal", style: TextStyle(color: Colors.white38, fontSize: 11)),
+      ],
+    ),
+  );
+
+  Widget _buildBackground() => Container(
+    decoration: const BoxDecoration(
+      gradient: RadialGradient(center: Alignment.center, radius: 1.5, colors: [Color(0xFF1B3B44), Color(0xFF0F171A)])
+    )
+  );
 
   Widget _buildAppBar(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+    padding: const EdgeInsets.all(16),
     child: Row(
       children: [
-        IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.pop(context)),
         const Text("Manage Money", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
       ],
     ),
@@ -130,20 +146,20 @@ class _ManagePageState extends State<ManagePage> {
     child: BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 35),
+        padding: const EdgeInsets.all(25),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          color: Colors.white.withOpacity(0.05), 
+          borderRadius: BorderRadius.circular(30), 
+          border: Border.all(color: Colors.white.withOpacity(0.1))
         ),
         child: child,
       ),
     ),
   );
 
-  Widget _buildInput(TextEditingController controller, String hint, IconData icon, {bool isNum = true}) => TextField(
+  Widget _buildInput(TextEditingController controller, String hint, IconData icon) => TextField(
     controller: controller,
-    keyboardType: isNum ? TextInputType.number : TextInputType.text,
+    keyboardType: TextInputType.number,
     style: const TextStyle(color: Colors.white),
     decoration: InputDecoration(
       hintText: hint,
@@ -162,11 +178,10 @@ class _ManagePageState extends State<ManagePage> {
     child: ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF005A6E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        side: const BorderSide(color: Color(0xFFE2C08D)),
+        backgroundColor: const Color(0xFF005A6E), 
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))
       ),
-      child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+      child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
     ),
   );
 }

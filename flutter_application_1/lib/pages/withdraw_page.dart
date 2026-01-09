@@ -1,58 +1,69 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'database_helper.dart';
 
 class WithdrawPage extends StatefulWidget {
   final double currentBalance;
+  final int userId;
 
-  const WithdrawPage({super.key, required this.currentBalance});
+  const WithdrawPage({super.key, required this.currentBalance, required this.userId});
 
   @override
   State<WithdrawPage> createState() => _WithdrawPageState();
 }
 
 class _WithdrawPageState extends State<WithdrawPage> {
-  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _pinController = TextEditingController();
-
-  String selectedCountry = "Cameroon";
-  String countryCode = "+237";
   bool _isLoading = false;
 
-  final Map<String, Map<String, dynamic>> phoneRules = {
-    "Cameroon": {"code": "+237", "length": 9},
-    "Nigeria": {"code": "+234", "length": 10},
-    "Ghana": {"code": "+233", "length": 9},
-    "Kenya": {"code": "+254", "length": 9},
-  };
-
-  void _handleWithdraw() {
+  void _handleWithdraw() async {
     final double? amount = double.tryParse(_amountController.text);
 
-    if (amount == null || _phoneController.text.isEmpty || _pinController.text.isEmpty) {
-      _showSnackBar("Please fill all fields", Colors.redAccent);
+    // 1. Validation Checks
+    if (amount == null || amount <= 0) {
+      _showSnackBar("Please enter a valid amount", Colors.orange);
       return;
     }
 
     if (amount > widget.currentBalance) {
-      _showSnackBar("Insufficient balance", Colors.redAccent);
+      _showSnackBar("Insufficient funds! Your balance is ${widget.currentBalance} FCFA", Colors.redAccent);
+      return;
+    }
+
+    if (_pinController.text.isEmpty) {
+      _showSnackBar("Please enter your PIN", Colors.orange);
       return;
     }
 
     setState(() => _isLoading = true);
 
-    // Simulate withdraw processing offline
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      // 2. DATABASE ACTION
+      // This subtracts from 'users' table and adds a row to 'transactions' table
+      await DatabaseHelper.instance.updateBalance(widget.userId, amount, 'withdraw');
+
+      // Small delay for UX
+      await Future.delayed(const Duration(milliseconds: 800));
+
       if (mounted) {
         setState(() => _isLoading = false);
+        _showSnackBar("Withdrawal of $amount FCFA successful!", Colors.green);
+        
+        // 3. Return to Home Page (Home Page will auto-refresh via _navigateTo)
         Navigator.pop(context);
-        _showSnackBar("Successfully withdrawn ${amount.toStringAsFixed(0)} FCFA", Colors.green);
       }
-    });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showSnackBar("Transaction failed. Please try again.", Colors.redAccent);
+    }
   }
 
   void _showSnackBar(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: color, duration: const Duration(seconds: 2)),
+    );
   }
 
   @override
@@ -71,31 +82,19 @@ class _WithdrawPageState extends State<WithdrawPage> {
                     child: _buildGlassContainer(
                       child: Column(
                         children: [
-                          const Icon(Icons.outbox_rounded, size: 60, color: Color(0xFFE2C08D)),
+                          const Icon(Icons.account_balance_wallet_rounded, size: 60, color: Color(0xFFE2C08D)),
                           const SizedBox(height: 15),
                           const Text("Withdraw Funds", 
                             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                          const Text("Transfer money to your mobile account", 
-                            style: TextStyle(color: Colors.white70)),
                           const SizedBox(height: 30),
-
-                          // Country Selector
-                          _buildDropdown(),
+                          
+                          _buildInput(_phoneController, "Phone Number", Icons.phone_android, isNum: true),
                           const SizedBox(height: 20),
-
-                          // Phone Input
-                          _buildInput(_phoneController, "Recipient Phone", Icons.phone_android, isNum: true),
+                          _buildInput(_amountController, "Amount (FCFA)", Icons.money_off, isNum: true),
                           const SizedBox(height: 20),
-
-                          // Amount Input
-                          _buildInput(_amountController, "Amount (FCFA)", Icons.money_off_rounded, isNum: true),
-                          const SizedBox(height: 20),
-
-                          // PIN Input
-                          _buildInput(_pinController, "Secure PIN", Icons.lock_outline, isObscure: true, isNum: true),
+                          _buildInput(_pinController, "Mobile Money PIN", Icons.lock, isObscure: true, isNum: true),
                           
                           const SizedBox(height: 40),
-
                           _buildButton("CONFIRM WITHDRAWAL", _handleWithdraw),
                         ],
                       ),
@@ -110,15 +109,15 @@ class _WithdrawPageState extends State<WithdrawPage> {
     );
   }
 
-  // --- UI COMPONENTS ---
+  // --- UI COMPONENTS (Match your design) ---
 
   Widget _buildBackground() => Container(decoration: const BoxDecoration(gradient: RadialGradient(center: Alignment.center, radius: 1.5, colors: [Color(0xFF1B3B44), Color(0xFF0F171A)])));
 
   Widget _buildAppBar(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+    padding: const EdgeInsets.all(16),
     child: Row(
       children: [
-        IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.pop(context)),
         const Text("Withdraw", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
       ],
     ),
@@ -129,47 +128,12 @@ class _WithdrawPageState extends State<WithdrawPage> {
     child: BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 35),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
-        ),
+        padding: const EdgeInsets.all(25),
+        decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white.withOpacity(0.1))),
         child: child,
       ),
     ),
   );
-
-  Widget _buildDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedCountry,
-          dropdownColor: const Color(0xFF0F171A),
-          isExpanded: true,
-          icon: const Icon(Icons.arrow_drop_down, color: Colors.cyan),
-          items: phoneRules.keys.map((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value, style: const TextStyle(color: Colors.white)),
-            );
-          }).toList(),
-          onChanged: (val) {
-            setState(() {
-              selectedCountry = val!;
-              countryCode = phoneRules[val]!["code"];
-            });
-          },
-        ),
-      ),
-    );
-  }
 
   Widget _buildInput(TextEditingController controller, String hint, IconData icon, {bool isObscure = false, bool isNum = false}) => TextField(
     controller: controller,
@@ -192,14 +156,8 @@ class _WithdrawPageState extends State<WithdrawPage> {
     height: 55,
     child: ElevatedButton(
       onPressed: _isLoading ? null : onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF005A6E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        side: const BorderSide(color: Color(0xFFE2C08D)),
-      ),
-      child: _isLoading 
-        ? const CircularProgressIndicator(color: Colors.white)
-        : Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF005A6E), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+      child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
     ),
   );
 }
